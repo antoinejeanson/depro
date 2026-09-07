@@ -9,8 +9,14 @@ import { routes } from '../router'
 
 const USER = { id: '1', email: 'ada@example.com', created_at: '2025-01-01T00:00:00' }
 
-/** Mock the API per path: /auth/me, /tasks, /tags. */
-function mockApi(me: unknown, tasks: unknown = [], tags: unknown = []) {
+/** Mock the API per path: /auth/me, /tasks, /tags, /timeboxes, /timebox-series. */
+function mockApi(
+  me: unknown,
+  tasks: unknown = [],
+  tags: unknown = [],
+  timeboxes: unknown = [],
+  series: unknown = [],
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
@@ -23,6 +29,10 @@ function mockApi(me: unknown, tasks: unknown = [], tags: unknown = []) {
         } else {
           body = me
         }
+      } else if (url.includes('/timebox-series')) {
+        body = series
+      } else if (url.includes('/timeboxes')) {
+        body = timeboxes
       } else if (url.includes('/tasks')) {
         body = tasks
       } else if (url.includes('/tags')) {
@@ -69,10 +79,14 @@ describe('App shell', () => {
     expect(text).toContain('Session')
   })
 
-  it('shows the calendar placeholder', async () => {
+  it('shows the calendar with month grid and series section', async () => {
     mockApi(USER)
     const wrapper = await mountApp('/calendar')
-    expect(wrapper.text()).toContain('Timeboxes land in M3')
+    const text = wrapper.text()
+    expect(text).toContain('Calendar')
+    expect(text).toContain('Series')
+    expect(text).toContain('Mon')
+    expect(text).toContain('New series')
   })
 
   it('sends authenticated users away from /login', async () => {
