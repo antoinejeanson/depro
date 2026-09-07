@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.db import init_db
-from app.routers import auth
+from app.routers import auth, tags, tasks
 
 
 @asynccontextmanager
@@ -22,6 +22,8 @@ app = FastAPI(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(tasks.router, prefix="/api")
+app.include_router(tags.router, prefix="/api")
 
 
 @app.get("/api/health")
