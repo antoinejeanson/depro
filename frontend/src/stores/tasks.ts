@@ -2,6 +2,20 @@ import { api } from '../api/client'
 import { defineStore } from 'pinia'
 
 export type TaskStatus = 'todo' | 'in_progress' | 'done'
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly'
+
+export interface Recurrence {
+  frequency: RecurrenceFrequency
+  interval: number
+  weekdays: number[] // 0=Mon..6=Sun, weekly only
+  day_of_month: number | null // monthly only
+}
+
+export interface TaskParent {
+  id: string
+  title: string
+  status: TaskStatus
+}
 
 export interface Task {
   id: string
@@ -12,6 +26,9 @@ export interface Task {
   status: TaskStatus
   progress: number
   estimated_minutes: number | null
+  recurrence: Recurrence | null
+  next_due_at: string | null
+  parents: TaskParent[]
   tags: string[]
   created_at: string
   updated_at: string
@@ -30,6 +47,8 @@ export interface TaskPayload {
   priority: number | null
   due_at: string | null
   estimated_minutes: number | null
+  recurrence: Recurrence | null
+  parents: string[] // parent task ids
   tags: string[]
 }
 

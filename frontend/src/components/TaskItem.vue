@@ -10,14 +10,25 @@ const emit = defineEmits<{ edit: [] }>()
 const now = dayjs()
 
 const isDone = computed(() => props.task.status === 'done')
+const isRecurring = computed(() => props.task.recurrence !== null)
+const openParents = computed(() =>
+  props.task.parents.filter((p) => p.status !== 'done'),
+)
+const isBlocked = computed(() => openParents.value.length > 0)
+
+// For recurring tasks the pending occurrence (next_due_at) is the relevant
+// due date; the stored due_at is just the schedule anchor.
+const effectiveDue = computed(() =>
+  isRecurring.value ? props.task.next_due_at : props.task.due_at,
+)
 const overdue = computed(
   () =>
-    props.task.due_at !== null &&
+    effectiveDue.value !== null &&
     !isDone.value &&
-    dayjs(props.task.due_at).isBefore(now, 'minute'),
+    dayjs(effectiveDue.value).isBefore(now, 'minute'),
 )
 const dueToday = computed(
-  () => props.task.due_at !== null && dayjs(props.task.due_at).isSame(now, 'day'),
+  () => effectiveDue.value !== null && dayjs(effectiveDue.value).isSame(now, 'day'),
 )
 
 const priorityClass = computed(() => {
@@ -35,10 +46,29 @@ const dueClass = computed(() => {
 })
 
 const dueLabel = computed(() => {
-  if (props.task.due_at === null) return ''
-  const due = dayjs(props.task.due_at)
+  const raw = effectiveDue.value
+  if (raw === null) return ''
+  const due = dayjs(raw)
   return `${overdue.value ? 'Overdue — ' : ''}${due.format('MMM D, HH:mm')}`
 })
+
+const recurrenceLabel = computed(() => {
+  const r = props.task.recurrence
+  if (!r) return ''
+  if (r.interval === 1) {
+    return r.frequency === 'daily'
+      ? 'daily'
+      : r.frequency === 'weekly'
+        ? 'weekly'
+        : 'monthly'
+  }
+  const unit = r.frequency === 'daily' ? 'day' : r.frequency === 'weekly' ? 'week' : 'month'
+  return `every ${r.interval} ${unit}s`
+})
+
+const blockedTitle = computed(() =>
+  `Waiting for: ${openParents.value.map((p) => p.title).join(', ')}`,
+)
 </script>
 
 <template>
@@ -78,11 +108,24 @@ const dueLabel = computed(() => {
           P{{ task.priority }}
         </span>
         <span
-          v-if="task.due_at !== null"
+          v-if="effectiveDue !== null"
           class="rounded px-1.5 py-0.5 text-[11px]"
           :class="dueClass"
         >
           {{ dueLabel }}
+        </span>
+        <span
+          v-if="isRecurring"
+          class="rounded bg-purple-100 px-1.5 py-0.5 text-[11px] text-purple-700"
+        >
+          ↻ {{ recurrenceLabel }}
+        </span>
+        <span
+          v-if="isBlocked"
+          class="rounded bg-gray-200 px-1.5 py-0.5 text-[11px] text-gray-600"
+          :title="blockedTitle"
+        >
+          🔒 waiting
         </span>
         <span
           v-if="task.estimated_minutes !== null"

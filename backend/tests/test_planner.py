@@ -182,3 +182,24 @@ def test_all_tiers_in_order():
     items = plan_timebox([nofit, fits, ip, overdue], box(NOW, NOW + timedelta(hours=1)), NOW)
     assert [i.tier for i in items] == [1, 2, 3, 4]
     assert titles(items) == ["overdue", "ip", "fits", "nofit"]
+
+
+def test_blocked_tasks_excluded_from_all_tiers():
+    parent = task("parent", status="todo")
+    child_t1 = task("child t1", due_at=NOW)  # would be T1
+    child_t2 = task("child t2", status="in_progress", progress=50)  # would be T2
+    child_t3 = task("child t3", est=10, priority=9)  # would be T3
+    blocked = {child_t1.id, child_t2.id, child_t3.id}
+    items = plan_timebox(
+        [parent, child_t1, child_t2, child_t3],
+        box(NOW, NOW + timedelta(hours=2)),
+        NOW,
+        blocked,
+    )
+    assert titles(items) == ["parent"]
+
+
+def test_blocked_empty_set_changes_nothing():
+    a = task("a", due_at=NOW)
+    items = plan_timebox([a], box(NOW, NOW + timedelta(hours=1)), NOW, set())
+    assert titles(items) == ["a"]

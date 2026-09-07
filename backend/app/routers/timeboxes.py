@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import Task, Timebox, TimeboxSeries, User
+from app.models import Task, TaskDependency, Timebox, TimeboxSeries, User
 from app.planner import plan_timebox
 from app.routers.tasks import task_to_read
 from app.schemas import (
@@ -74,11 +74,21 @@ def _user_tasks(db: DBSession, user: User) -> list[Task]:
     )
 
 
+def _blocked_ids(tasks: list[Task], db: DBSession) -> set[UUID]:
+    """Ids of tasks that have at least one parent not done."""
+    ids = {t.id for t in tasks}
+    if not ids:
+        return set()
+    status = {t.id: t.status for t in tasks}
+    deps = db.query(TaskDependency).filter(TaskDependency.child_id.in_(ids)).all()
+    return {dep.child_id for dep in deps if status.get(dep.parent_id) != "done"}
+
+
 def _entries(db: DBSession, user: User, tb: Timebox, now: datetime) -> list[PlanEntry]:
     tasks = _user_tasks(db, user)
     return [
         PlanEntry(task=task_to_read(item.task), tier=item.tier, reason=item.reason)
-        for item in plan_timebox(tasks, tb, now)
+        for item in plan_timebox(tasks, tb, now, _blocked_ids(tasks, db))
     ]
 
 

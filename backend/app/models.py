@@ -76,6 +76,21 @@ class Task(Base):
         secondary="task_tags",
         back_populates="tasks",
     )
+    # Precedence (M5): the task is blocked until every parent is done.
+    parents: Mapped[list["Task"]] = relationship(
+        secondary="task_dependencies",
+        primaryjoin="Task.id == foreign(TaskDependency.child_id)",
+        secondaryjoin="Task.id == foreign(TaskDependency.parent_id)",
+        overlaps="children",
+        lazy="selectin",
+    )
+    children: Mapped[list["Task"]] = relationship(
+        secondary="task_dependencies",
+        primaryjoin="Task.id == foreign(TaskDependency.parent_id)",
+        secondaryjoin="Task.id == foreign(TaskDependency.child_id)",
+        overlaps="parents",
+        lazy="selectin",
+    )
 
 
 class Tag(Base):
@@ -104,6 +119,18 @@ class TaskTag(Base):
     tag_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tags.id", ondelete="CASCADE"),
         primary_key=True,
+    )
+
+
+class TaskDependency(Base):
+    __tablename__ = "task_dependencies"
+
+    # child depends on parent: the child is blocked until the parent is done.
+    child_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    parent_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
     )
 
 

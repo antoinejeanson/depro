@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import dayjs from 'dayjs'
 
-import { useTasksStore, type Task, type TaskPayload } from '../stores/tasks'
+import { api } from '../api/client'
+import {
+  useTasksStore,
+  type RecurrenceFrequency,
+  type Task,
+  type TaskParent,
+  type TaskPayload,
+} from '../stores/tasks'
 
 const props = defineProps<{ task: Task | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -25,8 +32,56 @@ const form = reactive({
       : '',
   tags: [...(props.task?.tags ?? [])],
   progress: props.task?.progress ?? 0,
+  // Recurrence
+  repeats: props.task?.recurrence !== null,
+  recurrence_frequency: (props.task?.recurrence?.frequency ?? 'daily') as RecurrenceFrequency,
+  recurrence_interval: String(props.task?.recurrence?.interval ?? 1),
+  recurrence_weekdays: [...(props.task?.recurrence?.weekdays ?? [0])],
+  recurrence_day_of_month: String(props.task?.recurrence?.day_of_month ?? 1),
+  // Precedence
+  parentIds: (props.task?.parents ?? []).map((p) => p.id),
 })
 const newTag = ref('')
+
+// Parent picker: full (unfiltered) task list, excluding the task itself.
+const allTasks = ref<Task[]>([])
+onMounted(async () => {
+  try {
+    allTasks.value = await api<Task[]>('/tasks')
+  } catch {
+    // Picker stays empty; the task can still be saved without parents.
+  }
+})
+const parentCandidates = computed(() =>
+  allTasks.value
+    .filter((t) => t.id !== props.task?.id)
+    .sort((a, b) => a.title.localeCompare(b.title)),
+)
+const selectedParents = computed(() =>
+  form.parentIds
+    .map((id) => {
+      const full = allTasks.value.find((t) => t.id === id)
+      if (full) return full
+      const known = props.task?.parents.find((p) => p.id === id)
+      return known ? (known as TaskParent) : null
+    })
+    .filter((t): t is Task | TaskParent => t !== null),
+)
+
+function toggleWeekday(day: number) {
+  const i = form.recurrence_weekdays.indexOf(day)
+  if (i === -1) form.recurrence_weekdays.push(day)
+  else form.recurrence_weekdays.splice(i, 1)
+}
+
+function addParent(event: Event) {
+  const id = (event.target as HTMLSelectElement).value
+  if (id && !form.parentIds.includes(id)) form.parentIds.push(id)
+}
+
+function removeParent(id: string) {
+  form.parentIds = form.parentIds.filter((x) => x !== id)
+}
 
 function addTag() {
   const name = newTag.value.trim()
@@ -40,6 +95,21 @@ function removeTag(index: number) {
   form.tags.splice(index, 1)
 }
 
+function recurrencePayload() {
+  if (!form.repeats) return null
+  const frequency = form.recurrence_frequency
+  return {
+    frequency,
+    interval: Math.max(1, Number(form.recurrence_interval) || 1),
+    weekdays:
+      frequency === 'weekly'
+        ? [...form.recurrence_weekdays].sort((a, b) => a - b)
+        : [],
+    day_of_month:
+      frequency === 'monthly' ? Number(form.recurrence_day_of_month) || null : null,
+  }
+}
+
 function payload(): TaskPayload {
   return {
     title: form.title.trim(),
@@ -49,6 +119,8 @@ function payload(): TaskPayload {
     due_at: form.due_at ? dayjs(form.due_at).format('YYYY-MM-DDTHH:mm:ss') : null,
     estimated_minutes:
       form.estimated_minutes === '' ? null : Number(form.estimated_minutes),
+    recurrence: recurrencePayload(),
+    parents: [...form.parentIds],
     tags: form.tags,
   }
 }
@@ -57,6 +129,24 @@ async function save() {
   if (!form.title.trim()) {
     error.value = 'A title is required'
     return
+  }
+  if (form.repeats) {
+    if (!form.due_at) {
+      error.value = 'Recurring tasks need a due date — it anchors the schedule.'
+      return
+    }
+    if (form.recurrence_frequency === 'weekly' && form.recurrence_weekdays.length === 0) {
+      error.value = 'Pick at least one weekday for a weekly task.'
+      return
+    }
+    const dom = Number(form.recurrence_day_of_month)
+    if (
+      form.recurrence_frequency === 'monthly' &&
+      (!Number.isInteger(dom) || dom < 1 || dom > 31)
+    ) {
+      error.value = 'Day of month must be between 1 and 31.'
+      return
+    }
   }
   saving.value = true
   error.value = ''
@@ -162,6 +252,113 @@ async function remove() {
             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
           />
         </label>
+
+        <!-- Recurrence -->
+        <div class="rounded-lg border border-gray-200 p-3">
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              v-model="form.repeats"
+              type="checkbox"
+              class="h-4 w-4 accent-indigo-600"
+            />
+            <span class="font-medium">Repeats</span>
+          </label>
+          <div v-if="form.repeats" class="mt-3 space-y-3">
+            <div class="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+              <span>Every</span>
+              <input
+                v-model="form.recurrence_interval"
+                type="number"
+                min="1"
+                max="365"
+                class="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+              />
+              <select
+                v-model="form.recurrence_frequency"
+                aria-label="Recurrence frequency"
+                class="rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="daily">day(s)</option>
+                <option value="weekly">week(s)</option>
+                <option value="monthly">month(s)</option>
+              </select>
+            </div>
+            <div
+              v-if="form.recurrence_frequency === 'weekly'"
+              class="flex flex-wrap gap-1"
+            >
+              <button
+                v-for="(label, i) in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']"
+                :key="label"
+                type="button"
+                class="rounded px-2 py-1 text-xs font-medium"
+                :class="
+                  form.recurrence_weekdays.includes(i)
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                "
+                @click="toggleWeekday(i)"
+              >
+                {{ label }}
+              </button>
+            </div>
+            <label
+              v-if="form.recurrence_frequency === 'monthly'"
+              class="flex items-center gap-2 text-sm text-gray-700"
+            >
+              <span>On day</span>
+              <input
+                v-model="form.recurrence_day_of_month"
+                type="number"
+                min="1"
+                max="31"
+                class="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+              />
+              <span>of the month</span>
+            </label>
+            <p class="text-xs text-gray-500">
+              The due date anchors the schedule. Completing the task reschedules it
+              for the next occurrence instead of finishing it.
+            </p>
+          </div>
+        </div>
+
+        <!-- Precedence -->
+        <div>
+          <span class="mb-1 block text-sm text-gray-700">Waits for (optional)</span>
+          <p class="mb-2 text-xs text-gray-500">
+            This task only enters plans once all of its parents are done.
+          </p>
+          <div class="flex flex-wrap items-center gap-1">
+            <span
+              v-for="p in selectedParents"
+              :key="p.id"
+              class="flex items-center gap-1 rounded bg-purple-50 px-2 py-0.5 text-xs text-purple-700"
+            >
+              {{ p.title }}
+              <button
+                type="button"
+                class="hover:text-purple-900"
+                aria-label="Remove parent"
+                @click="removeParent(p.id)"
+              >
+                ✕
+              </button>
+            </span>
+            <select
+              v-if="parentCandidates.length"
+              :value="''"
+              class="rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+              aria-label="Add parent"
+              @change="addParent($event)"
+            >
+              <option value="">+ Add parent…</option>
+              <option v-for="t in parentCandidates" :key="t.id" :value="t.id">
+                {{ t.title }}
+              </option>
+            </select>
+          </div>
+        </div>
 
         <div>
           <span class="mb-1 block text-sm text-gray-700">Tags</span>

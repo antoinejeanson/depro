@@ -44,12 +44,42 @@ class TagRead(BaseModel):
     task_count: int = 0
 
 
+class TaskRecurrence(BaseModel):
+    """Recurrence rule for tasks. The schedule is anchored at the task's due
+    date (occurrence #0 is the due date itself, then every `interval`-th rule
+    match after it, at the due date's time of day)."""
+
+    frequency: Literal["daily", "weekly", "monthly"]
+    interval: int = Field(default=1, ge=1, le=365)
+    weekdays: list[int] = Field(default_factory=list)  # 0 = Monday .. 6 = Sunday
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+
+    @model_validator(mode="after")
+    def check_rule(self) -> "TaskRecurrence":
+        if self.frequency == "weekly":
+            if not self.weekdays:
+                raise ValueError("weekly recurrence needs at least one weekday")
+            if any(w < 0 or w > 6 for w in self.weekdays):
+                raise ValueError("weekdays must be between 0 (Mon) and 6 (Sun)")
+        if self.frequency == "monthly" and self.day_of_month is None:
+            raise ValueError("monthly recurrence needs a day of month (1-31)")
+        return self
+
+
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     notes: str | None = Field(default=None, max_length=5000)
     priority: int | None = Field(default=None, ge=0, le=9)
     due_at: datetime | None = None
     estimated_minutes: int | None = Field(default=None, gt=0)
+    recurrence: TaskRecurrence | None = None
+    parents: list[UUID] = []
+
+    @model_validator(mode="after")
+    def check_recurrence(self) -> "TaskBase":
+        if self.recurrence is not None and self.due_at is None:
+            raise ValueError("recurring tasks need a due date (the schedule anchor)")
+        return self
 
 
 class TaskCreate(TaskBase):
@@ -58,6 +88,12 @@ class TaskCreate(TaskBase):
 
 class TaskUpdate(TaskBase):
     tags: list[str] = []
+
+
+class ParentRead(BaseModel):
+    id: UUID
+    title: str
+    status: str
 
 
 class TaskRead(BaseModel):
@@ -69,7 +105,10 @@ class TaskRead(BaseModel):
     status: str
     progress: int
     estimated_minutes: int | None
+    recurrence: TaskRecurrence | None
+    next_due_at: datetime | None
     tags: list[str]
+    parents: list[ParentRead]
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None

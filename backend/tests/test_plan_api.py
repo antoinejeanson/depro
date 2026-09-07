@@ -215,3 +215,79 @@ def test_plan_404_and_isolation(client):
     _register(client, "bob@example.com")
     assert client.get(f"/api/timeboxes/{box['id']}/plan").status_code == 404
     assert client.get(f"/api/timeboxes/{uuid.uuid4()}/plan").status_code == 404
+
+
+# ---------------------------------------------------------------- M5: precedence + recurrence
+
+
+def test_blocked_child_not_planned_until_parent_done(client):
+    _register(client, "ada@example.com")
+    parent = _task(client, title="parent", due_at="2026-09-01T10:00:00", estimated_minutes=30)
+    _task(client, title="child", priority=9, estimated_minutes=10, parents=[parent["id"]])
+    _active_box(client, minutes=60)
+
+    body = client.get("/api/timeboxes/now").json()
+    # The child is blocked even though it has the highest priority.
+    assert _titles(body["plan"]) == ["parent"]
+
+    # Completing the parent unblocks the child.
+    client.post(f"/api/tasks/{parent['id']}/complete")
+    body = client.get("/api/timeboxes/now").json()
+    assert _titles(body["plan"]) == ["child"]
+
+
+def test_recurring_task_not_planned_before_next_occurrence(client):
+    _register(client, "ada@example.com")
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    _task(
+        client,
+        title="waiting",
+        due_at=f"{tomorrow}T09:00:00",
+        estimated_minutes=10,
+        recurrence={"frequency": "daily", "interval": 1},
+    )
+    _task(client, title="ready", estimated_minutes=10)
+    _active_box(client, minutes=60)
+
+    body = client.get("/api/timeboxes/now").json()
+    assert _titles(body["plan"]) == ["ready"]
+
+
+def test_overdue_recurring_task_is_planned(client):
+    _register(client, "ada@example.com")
+    _task(
+        client,
+        title="overdue recurring",
+        due_at="2026-09-01T09:00:00",
+        estimated_minutes=10,
+        recurrence={"frequency": "daily", "interval": 1},
+    )
+    _active_box(client, minutes=60)
+
+    body = client.get("/api/timeboxes/now").json()
+    assert body["current"]["task"]["title"] == "overdue recurring"
+    assert body["current"]["tier"] == 1
+
+
+def test_completing_recurring_task_reschedules_it(client):
+    _register(client, "ada@example.com")
+    t = _task(
+        client,
+        title="daily",
+        due_at="2026-09-01T09:00:00",
+        estimated_minutes=10,
+        recurrence={"frequency": "daily", "interval": 1},
+    )
+    _active_box(client, minutes=60)
+    assert client.get("/api/timeboxes/now").json()["current"]["task"]["title"] == "daily"
+
+    # Complete: flips to todo, next occurrence is the next 09:00 (in the future).
+    r = client.post(f"/api/tasks/{t['id']}/complete")
+    nxt = datetime.fromisoformat(r.json()["next_due_at"])
+    assert nxt > datetime.now()
+    assert (nxt.hour, nxt.minute) == (9, 0)
+
+    # Now it is waiting: no longer in the plan.
+    body = client.get("/api/timeboxes/now").json()
+    assert "daily" not in _titles(body["plan"])
+    assert body["current"] is None

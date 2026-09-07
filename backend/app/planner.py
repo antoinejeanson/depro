@@ -80,10 +80,18 @@ def _t4_reason(t: Task, est: int) -> str:
     return ", ".join(parts)
 
 
-def plan_timebox(tasks: list[Task], tb, now: datetime) -> list[PlanItem]:
-    """Compute the live plan for a timebox. Past boxes get no plan."""
+def plan_timebox(
+    tasks: list[Task], tb, now: datetime, blocked: set | None = None
+) -> list[PlanItem]:
+    """Compute the live plan for a timebox. Past boxes get no plan.
+
+    `blocked` is the set of task ids with at least one parent not done;
+    the planner never auto-selects blocked tasks (the user can still advance
+    them manually in the task list).
+    """
     if tb.ends_at <= now:
         return []
+    blocked = blocked or set()
 
     if tb.starts_at > now:
         capacity = (tb.ends_at - tb.starts_at).total_seconds() // 60
@@ -93,11 +101,13 @@ def plan_timebox(tasks: list[Task], tb, now: datetime) -> list[PlanItem]:
     end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=0)
 
     # Eligible = not done AND (no next_due_at or next_due_at <= now)
-    # AND all parents done (M5 adds the parent check).
+    # AND not blocked by an unfinished parent.
     eligible = [
         t
         for t in tasks
-        if t.status != "done" and (t.next_due_at is None or t.next_due_at <= now)
+        if t.status != "done"
+        and (t.next_due_at is None or t.next_due_at <= now)
+        and t.id not in blocked
     ]
 
     t1 = [t for t in eligible if t.due_at is not None and t.due_at <= end_of_today]
