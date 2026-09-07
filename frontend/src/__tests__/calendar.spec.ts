@@ -1,9 +1,15 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import MonthGrid from '../components/MonthGrid.vue'
-import { useTimeboxesStore, type Timebox } from '../stores/timeboxes'
+import TimeboxDialog from '../components/TimeboxDialog.vue'
+import type { Task } from '../stores/tasks'
+import {
+  useTimeboxesStore,
+  type PlanResponse,
+  type Timebox,
+} from '../stores/timeboxes'
 import { describeRule, monthCells, type DayCell } from '../utils/calendar'
 
 const TB: Timebox = {
@@ -162,5 +168,98 @@ describe('timeboxes store', () => {
     await store.deleteSeries('abc')
     expect(fetchMock.mock.calls[0][0]).toBe('/api/timebox-series/abc')
     expect(fetchMock.mock.calls[0][1]?.method).toBe('DELETE')
+  })
+})
+
+const TASK: Task = {
+  id: 't1',
+  title: 'Write the report',
+  notes: null,
+  priority: 7,
+  due_at: '2026-09-05T17:00:00',
+  status: 'todo',
+  progress: 0,
+  estimated_minutes: 45,
+  recurrence: null,
+  next_due_at: null,
+  parents: [],
+  tags: [],
+  created_at: '2026-09-01T00:00:00',
+  updated_at: '2026-09-01T00:00:00',
+  completed_at: null,
+}
+
+const SERIES_TB: Timebox = {
+  id: 'tb-1',
+  title: null,
+  starts_at: '2026-09-14T19:00:00',
+  ends_at: '2026-09-14T21:00:00',
+  series_id: 'ser-1',
+  series_title: 'Evening work',
+}
+
+function planFor(tb: Timebox): PlanResponse {
+  return {
+    timebox: tb,
+    state: 'upcoming',
+    plan: [{ task: TASK, tier: 1, reason: 'Overdue (due Sep 05)' }],
+    completed: [],
+  }
+}
+
+describe('TimeboxDialog detail mode', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  async function mountDetail(tb: Timebox) {
+    setActivePinia(createPinia())
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify(planFor(tb)), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    )
+    const wrapper = mount(TimeboxDialog, {
+      props: { date: tb.starts_at.slice(0, 10), timebox: tb },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('shows the plan for a series occurrence', async () => {
+    const wrapper = await mountDetail(SERIES_TB)
+    const text = wrapper.text()
+    expect(text).toContain('Evening work') // title falls back to series_title
+    expect(text).toContain('series')
+    expect(text).toContain('Write the report')
+    expect(text).toContain('Overdue (due Sep 05)')
+  })
+
+  it('offers Edit series (not Delete) for a series occurrence', async () => {
+    const wrapper = await mountDetail(SERIES_TB)
+    expect(wrapper.text()).toContain('Edit series')
+    expect(wrapper.text()).not.toContain('Delete')
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Edit series')!
+    await btn.trigger('click')
+    expect(wrapper.emitted('editSeries')).toEqual([['ser-1']])
+  })
+
+  it('keeps Delete for a one-off', async () => {
+    const oneOff: Timebox = {
+      ...TB,
+      starts_at: '2026-09-14T09:00:00',
+      ends_at: '2026-09-14T11:00:00',
+    }
+    const wrapper = await mountDetail(oneOff)
+    expect(wrapper.text()).toContain('Delete')
+    expect(wrapper.text()).not.toContain('Edit series')
+    expect(wrapper.text()).toContain('one-off')
   })
 })

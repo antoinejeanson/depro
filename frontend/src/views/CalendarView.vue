@@ -43,19 +43,44 @@ function shiftMonth(delta: number) {
 const timeboxDialog = ref<{ date: string; timebox?: Timebox } | null>(null)
 const seriesDialog = ref<Series | 'new' | null>(null)
 const deletingSeries = ref<string | null>(null)
+const dialogKey = ref(0)
 
 function openDay(date: string) {
   timeboxDialog.value = { date }
 }
 
 function openTimebox(tb: Timebox) {
-  if (tb.series_id) {
-    // Series chips open the series editor (occurrences themselves are not
-    // individually editable — the series is the source of truth).
-    const series = store.series.find((s) => s.id === tb.series_id)
-    if (series) seriesDialog.value = series
+  // Both one-offs and series occurrences show their plan. Series
+  // occurrences cannot be edited or deleted individually — the dialog
+  // offers "Edit series" instead.
+  timeboxDialog.value = { date: tb.starts_at.slice(0, 10), timebox: tb }
+}
+
+function editSeries(seriesId: string) {
+  const series = store.series.find((s) => s.id === seriesId)
+  if (series) {
+    seriesDialog.value = series
   } else {
-    timeboxDialog.value = { date: tb.starts_at.slice(0, 10), timebox: tb }
+    timeboxDialog.value = null
+  }
+}
+
+// After a series save, future occurrences are regenerated with new ids, so
+// re-resolve the open occurrence (or close the dialog if it no longer exists).
+function closeSeriesDialog() {
+  seriesDialog.value = null
+  const tb = timeboxDialog.value?.timebox
+  if (tb?.series_id) {
+    const date = tb.starts_at.slice(0, 10)
+    const fresh = store.timeboxes.find(
+      (x) => x.series_id === tb.series_id && x.starts_at.slice(0, 10) === date,
+    )
+    if (!fresh) {
+      timeboxDialog.value = null
+    } else if (fresh.id !== tb.id) {
+      timeboxDialog.value = { date, timebox: fresh }
+      dialogKey.value++ // remount so the plan preview refetches
+    }
   }
 }
 
@@ -195,14 +220,16 @@ async function removeSeries(s: Series) {
 
     <TimeboxDialog
       v-if="timeboxDialog"
+      :key="dialogKey"
       :date="timeboxDialog.date"
       :timebox="timeboxDialog.timebox ?? null"
       @close="timeboxDialog = null"
+      @edit-series="editSeries"
     />
     <SeriesDialog
       v-if="seriesDialog !== null"
       :series="seriesDialog === 'new' ? null : seriesDialog"
-      @close="seriesDialog = null"
+      @close="closeSeriesDialog"
     />
   </div>
 </template>

@@ -5,7 +5,7 @@ import PlanList from './PlanList.vue'
 import { useTimeboxesStore, type PlanResponse, type Timebox } from '../stores/timeboxes'
 
 const props = defineProps<{ date: string; timebox?: Timebox | null }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; editSeries: [seriesId: string] }>()
 
 const store = useTimeboxesStore()
 const saving = ref(false)
@@ -90,14 +90,12 @@ async function remove() {
       <template v-if="timebox">
         <div class="mt-4 space-y-1 text-sm text-gray-700">
           <p class="text-base font-medium text-gray-900">
-            {{ timebox.title || 'Timebox' }}
+            {{ timebox.title || timebox.series_title || 'Timebox' }}
           </p>
           <p>{{ timebox.starts_at.replace('T', ' at ') }}</p>
           <p class="text-gray-500">
-            {{
-              timebox.ends_at.slice(11, 16)
-            }}
-            · one-off
+            {{ timebox.ends_at.slice(11, 16) }}
+            · {{ timebox.series_id ? 'series' : 'one-off' }}
           </p>
         </div>
 
@@ -142,6 +140,15 @@ async function remove() {
             Close
           </button>
           <button
+            v-if="timebox.series_id"
+            type="button"
+            class="ml-auto rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+            @click="emit('editSeries', timebox.series_id)"
+          >
+            Edit series
+          </button>
+          <button
+            v-else
             type="button"
             :disabled="saving"
             class="ml-auto rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
