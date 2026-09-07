@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Backend data
+backend/data/
+
+# Node
+node_modules/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+coverage/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
