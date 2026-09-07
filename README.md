@@ -65,7 +65,7 @@ cd frontend && npm test && npm run build   # build also type-checks
 | M1 | Auth (accounts, sessions, user scoping) | ✅ |
 | M2 | Tasks (CRUD, tags, list UI) | ✅ |
 | M3 | Timeboxes (one-off + series, calendar) | ✅ |
-| M4 | Planner & Session (live plans, spontaneous) | ⬜ |
+| M4 | Planner & Session (live plans, spontaneous) | ✅ |
 | M5 | Recurrence & Precedence | ⬜ |
 | M6 | Polish | ⬜ |
 

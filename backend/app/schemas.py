@@ -151,3 +151,27 @@ class TimeboxRead(BaseModel):
     ends_at: datetime
     series_id: UUID | None
     series_title: str | None
+
+
+class SpontaneousIn(BaseModel):
+    minutes: int = Field(ge=5, le=480)
+
+
+class PlanEntry(BaseModel):
+    task: TaskRead
+    tier: int  # 1-4
+    reason: str
+
+
+class PlanResponse(BaseModel):
+    timebox: TimeboxRead
+    state: str  # "upcoming" | "active" | "past"
+    plan: list[PlanEntry]
+    completed: list[TaskRead]  # tasks completed during the window (past boxes)
+
+
+class NowResponse(BaseModel):
+    timebox: TimeboxRead | None
+    state: str  # "active" | "idle"
+    plan: list[PlanEntry]
+    current: PlanEntry | None

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 
-import { useTimeboxesStore, type Timebox } from '../stores/timeboxes'
+import PlanList from './PlanList.vue'
+import { useTimeboxesStore, type PlanResponse, type Timebox } from '../stores/timeboxes'
 
 const props = defineProps<{ date: string; timebox?: Timebox | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -9,12 +10,23 @@ const emit = defineEmits<{ close: [] }>()
 const store = useTimeboxesStore()
 const saving = ref(false)
 const error = ref('')
+const plan = ref<PlanResponse | null>(null)
 
 const form = reactive({
   date: props.date,
   start: '09:00',
   end: '11:00',
   title: '',
+})
+
+onMounted(async () => {
+  if (props.timebox) {
+    try {
+      plan.value = await store.fetchPlan(props.timebox.id)
+    } catch {
+      plan.value = null
+    }
+  }
 })
 
 async function create() {
@@ -87,6 +99,34 @@ async function remove() {
             }}
             · one-off
           </p>
+        </div>
+
+        <div v-if="plan" class="mt-4">
+          <template v-if="plan.state === 'past'">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Completed in this timebox
+            </h3>
+            <ul v-if="plan.completed.length" class="mt-2 space-y-1">
+              <li
+                v-for="t in plan.completed"
+                :key="t.id"
+                class="flex items-center gap-2 text-sm text-gray-700"
+              >
+                <span class="text-emerald-600">✓</span>
+                <span class="line-through decoration-gray-400">{{ t.title }}</span>
+              </li>
+            </ul>
+            <p v-else class="mt-2 text-sm text-gray-400">Nothing was completed.</p>
+          </template>
+          <template v-else>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Plan
+            </h3>
+            <div v-if="plan.plan.length" class="mt-2">
+              <PlanList :entries="plan.plan" />
+            </div>
+            <p v-else class="mt-2 text-sm text-gray-400">No eligible tasks.</p>
+          </template>
         </div>
         <p v-if="error" class="mt-3 text-sm text-red-600">{{ error }}</p>
         <div class="mt-4 flex items-center gap-2">

@@ -1,6 +1,8 @@
 import { api } from '../api/client'
 import { defineStore } from 'pinia'
 
+import type { Task } from './tasks'
+
 export type Frequency = 'daily' | 'weekly' | 'monthly'
 
 export interface SeriesRule {
@@ -34,6 +36,19 @@ export interface OneOffPayload {
   title: string | null
   starts_at: string
   ends_at: string
+}
+
+export interface PlanEntry {
+  task: Task
+  tier: number // 1-4
+  reason: string
+}
+
+export interface PlanResponse {
+  timebox: Timebox
+  state: 'upcoming' | 'active' | 'past'
+  plan: PlanEntry[]
+  completed: Task[] // tasks completed during the window (past boxes)
 }
 
 interface Range {
@@ -99,6 +114,9 @@ export const useTimeboxesStore = defineStore('timeboxes', {
     async deleteSeries(id: string) {
       await api<void>(`/timebox-series/${id}`, { method: 'DELETE' })
       await this.refresh()
+    },
+    async fetchPlan(id: string) {
+      return api<PlanResponse>(`/timeboxes/${id}/plan`)
     },
   },
 })
