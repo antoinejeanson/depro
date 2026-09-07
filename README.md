@@ -57,6 +57,14 @@ cd backend && uv run ruff check . && uv run pytest
 cd frontend && npm test && npm run build   # build also type-checks
 ```
 
+Or from the repo root: `make test` and `make lint`.
+
+## AI agents
+
+If you are an AI coding agent working in this repository, read
+[AGENTS.md](AGENTS.md) first — commands, architecture, conventions, and
+gotchas.
+
 ## Milestones
 
 | # | Milestone | Status |
@@ -67,7 +75,7 @@ cd frontend && npm test && npm run build   # build also type-checks
 | M3 | Timeboxes (one-off + series, calendar) | ✅ |
 | M4 | Planner & Session (live plans, spontaneous) | ✅ |
 | M5 | Recurrence & Precedence | ✅ |
-| M6 | Polish | ⬜ |
+| M6 | Polish (export, empty states, reason badges) | ✅ |
 
 ## License
 

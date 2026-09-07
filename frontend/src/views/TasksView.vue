@@ -40,6 +40,10 @@ function openEdit(task: Task) {
 
 const hasActiveFilters = () =>
   Boolean(store.filters.q || store.filters.status || store.filters.tag)
+
+function clearFilters() {
+  store.filters = { q: '', status: '', tag: '' }
+}
 </script>
 
 <template>
@@ -90,13 +94,34 @@ const hasActiveFilters = () =>
         <TaskItem :task="task" @edit="openEdit(task)" />
       </li>
     </ul>
-    <p v-else class="mt-10 text-center text-sm text-gray-500">
-      {{
-        hasActiveFilters()
-          ? 'No tasks match the filters.'
-          : 'No tasks yet — add your first one.'
-      }}
-    </p>
+    <div
+      v-else
+      class="mt-10 flex flex-col items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center"
+    >
+      <p class="text-sm text-gray-500">
+        {{
+          hasActiveFilters()
+            ? 'No tasks match the filters.'
+            : 'No tasks yet. Add your first one — the planner will take it from there.'
+        }}
+      </p>
+      <button
+        v-if="hasActiveFilters()"
+        type="button"
+        class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        @click="clearFilters"
+      >
+        Clear filters
+      </button>
+      <button
+        v-else
+        type="button"
+        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+        @click="openNew"
+      >
+        + New task
+      </button>
+    </div>
 
     <TaskEditor
       v-if="editorOpen"

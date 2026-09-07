@@ -1,8 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import PlanList from '../components/PlanList.vue'
+import { routes } from '../router'
 import { useSessionStore } from '../stores/session'
 import type { Task } from '../stores/tasks'
 import type { PlanEntry } from '../stores/timeboxes'
@@ -58,19 +60,32 @@ function mockFetch(handler: (url: string, init?: RequestInit) => unknown) {
 
 async function mountSession() {
   setActivePinia(createPinia())
-  const wrapper = mount(SessionView)
+  const router = createRouter({ history: createMemoryHistory(), routes })
+  router.push('/session')
+  await router.isReady()
+  const wrapper = mount(SessionView, { global: { plugins: [router] } })
   await flushPromises()
   return wrapper
 }
 
 describe('PlanList', () => {
-  it('renders entries with tier, title, reason and estimate', () => {
+  it('renders entries with tier label, title, reason and estimate', () => {
     const wrapper = mount(PlanList, { props: { entries: [ENTRY] } })
     const text = wrapper.text()
-    expect(text).toContain('T1')
+    expect(text).toContain('Urgent')
     expect(text).toContain('Overdue report')
     expect(text).toContain('Overdue (due Sep 05)')
     expect(text).toContain('45m')
+  })
+
+  it('labels all four tiers', () => {
+    const entries = [1, 2, 3, 4].map((tier) => ({ ...ENTRY, tier }))
+    const wrapper = mount(PlanList, { props: { entries } })
+    const text = wrapper.text()
+    expect(text).toContain('Urgent')
+    expect(text).toContain('In progress')
+    expect(text).toContain('Fits')
+    expect(text).toContain("Doesn't fit")
   })
 })
 

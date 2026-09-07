@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -93,5 +93,35 @@ describe('App shell', () => {
     mockApi(USER)
     const wrapper = await mountApp('/login')
     expect(wrapper.text()).toContain('No tasks yet')
+  })
+
+  it('downloads the JSON export when Export data is clicked', async () => {
+    mockApi(USER)
+    const createObjectURL = vi.fn(() => 'blob:mock')
+    const revokeObjectURL = vi.fn()
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    URL.createObjectURL = createObjectURL
+    URL.revokeObjectURL = revokeObjectURL
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    try {
+      const wrapper = await mountApp('/tasks')
+      const exportBtn = wrapper.find('button[aria-label="Export data"]')
+      expect(exportBtn.exists()).toBe(true)
+      await exportBtn.trigger('click')
+      await flushPromises()
+
+      const fetchMock = vi.mocked(fetch)
+      expect(
+        fetchMock.mock.calls.some((c) => String(c[0]).includes('/api/export')),
+      ).toBe(true)
+      expect(createObjectURL).toHaveBeenCalled()
+      expect(clickSpy).toHaveBeenCalled()
+    } finally {
+      clickSpy.mockRestore()
+      URL.createObjectURL = origCreate
+      URL.revokeObjectURL = origRevoke
+    }
   })
 })

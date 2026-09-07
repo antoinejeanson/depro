@@ -2,8 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import PlanList from '../components/PlanList.vue'
+import { RouterLink } from 'vue-router'
 import { useSessionStore } from '../stores/session'
 import { useTasksStore } from '../stores/tasks'
+import { tierMeta } from '../utils/tiers'
 
 const session = useSessionStore()
 const tasks = useTasksStore()
@@ -107,9 +109,9 @@ async function start() {
 
     <!-- Active timebox -->
     <template v-if="active && box">
-      <div class="mt-4 flex items-center justify-between rounded-xl bg-indigo-50 px-4 py-3">
-        <div>
-          <p class="font-medium text-indigo-900">{{ box.title || 'Timebox' }}</p>
+      <div class="mt-4 flex items-center justify-between gap-3 rounded-xl bg-indigo-50 px-4 py-3">
+        <div class="min-w-0">
+          <p class="truncate font-medium text-indigo-900">{{ box.title || 'Timebox' }}</p>
           <p class="text-xs text-indigo-700">
             {{ fmt(box.starts_at) }} → {{ fmt(box.ends_at) }}
           </p>
@@ -127,7 +129,15 @@ async function start() {
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div class="min-w-0">
               <p class="text-lg font-semibold text-gray-900">{{ current.task.title }}</p>
-              <p class="text-sm text-gray-500">{{ current.reason }}</p>
+              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                <span
+                  class="rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                  :class="tierMeta(current.tier).cls"
+                >
+                  {{ tierMeta(current.tier).label }}
+                </span>
+                <span class="text-sm text-gray-500">{{ current.reason }}</span>
+              </div>
             </div>
             <div class="flex shrink-0 gap-1.5">
               <span
@@ -242,6 +252,13 @@ async function start() {
       >
         {{ starting ? 'Starting…' : 'Start now' }}
       </button>
+      <p class="mt-4 text-sm text-gray-500">
+        Or plan ahead:
+        <RouterLink to="/calendar" class="font-medium text-indigo-600 hover:underline">
+          add a timebox on the calendar
+        </RouterLink>
+        .
+      </p>
     </div>
   </div>
 </template>

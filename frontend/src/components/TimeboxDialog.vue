@@ -125,7 +125,10 @@ async function remove() {
             <div v-if="plan.plan.length" class="mt-2">
               <PlanList :entries="plan.plan" />
             </div>
-            <p v-else class="mt-2 text-sm text-gray-400">No eligible tasks.</p>
+            <p v-else class="mt-2 text-sm text-gray-400">
+              No eligible tasks for this timebox yet. Add tasks, or check their
+              due dates and unfinished parents.
+            </p>
           </template>
         </div>
         <p v-if="error" class="mt-3 text-sm text-red-600">{{ error }}</p>

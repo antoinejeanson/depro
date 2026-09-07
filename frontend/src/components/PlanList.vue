@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import type { PlanEntry } from '../stores/timeboxes'
+import { tierMeta } from '../utils/tiers'
 
 defineProps<{ entries: PlanEntry[] }>()
-
-const TIER_COLORS: Record<number, string> = {
-  1: 'bg-rose-100 text-rose-700',
-  2: 'bg-amber-100 text-amber-700',
-  3: 'bg-emerald-100 text-emerald-700',
-  4: 'bg-gray-100 text-gray-500',
-}
 </script>
 
 <template>
@@ -19,10 +13,10 @@ const TIER_COLORS: Record<number, string> = {
       class="flex items-center gap-3 px-3 py-2.5"
     >
       <span
-        class="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold"
-        :class="TIER_COLORS[entry.tier] ?? TIER_COLORS[4]"
+        class="w-20 shrink-0 rounded-md px-1.5 py-0.5 text-center text-xs font-semibold"
+        :class="tierMeta(entry.tier).cls"
       >
-        T{{ entry.tier }}
+        {{ tierMeta(entry.tier).label }}
       </span>
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium text-gray-900">{{ entry.task.title }}</p>
