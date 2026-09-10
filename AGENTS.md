@@ -1,7 +1,8 @@
 # AGENTS.md
 
 Guidance for AI coding agents working in this repository.
-Human-facing docs: [README.md](README.md). Full product design: [PLAN.md](PLAN.md).
+Human-facing docs: [README.md](README.md). Design docs: [docs/spec.md](docs/spec.md)
+(product spec), [docs/data-model.md](docs/data-model.md), [docs/api.md](docs/api.md).
 
 ## Project
 
@@ -35,7 +36,7 @@ exactly what to do. Two halves:
 ```
 backend/    FastAPI + SQLAlchemy 2 + SQLite (uv-managed Python 3.13)
 frontend/   Vue 3 + Vite + TypeScript + Pinia + vue-router + Tailwind CSS v4
-PLAN.md     Product design (data model, planner algorithm, API, milestones)
+docs/       Product docs: spec (planner, recurrence, precedence), data model, API
 Makefile    Dev shortcuts (backend / frontend / test / lint)
 ```
 

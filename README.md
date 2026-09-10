@@ -3,17 +3,9 @@
 Short for **deprocrastinator**. Self-hostable application for managing the to-do
 list of recovering procrastinators through discipline.
 
-The app has two halves:
-
-- **Tasks** — a single to-do list with optional tags, priority (0–9), due
-  dates, progress, estimated durations, recurrence and precedence.
-- **Timeboxes** — committed work blocks on a calendar (one-off, regularly
-  spaced, or spontaneous). Each timebox gets a plan: an ordered list of tasks
-  chosen by a cold algorithm (priority, due date, estimated time, precedence)
-  so the user never has to decide what to do next.
-
-See [PLAN.md](PLAN.md) for the full design (data model, planner algorithm,
-API, milestones).
+Project documentation lives in [docs/](docs/): the
+[product spec](docs/spec.md) (planner algorithm, recurrence, precedence), the
+[data model](docs/data-model.md), and the [API](docs/api.md).
 
 ## Repository layout
 
