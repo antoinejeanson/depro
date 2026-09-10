@@ -85,18 +85,6 @@ If you are an AI coding agent working in this repository, read
 [AGENTS.md](AGENTS.md) first — commands, architecture, conventions, and
 gotchas.
 
-## Milestones
-
-| # | Milestone | Status |
-|---|-----------|--------|
-| M0 | Scaffold (both apps, tooling) | ✅ |
-| M1 | Auth (accounts, sessions, user scoping) | ✅ |
-| M2 | Tasks (CRUD, tags, list UI) | ✅ |
-| M3 | Timeboxes (one-off + series, calendar) | ✅ |
-| M4 | Planner & Session (live plans, spontaneous) | ✅ |
-| M5 | Recurrence & Precedence | ✅ |
-| M6 | Polish (export, empty states, reason badges) | ✅ |
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
