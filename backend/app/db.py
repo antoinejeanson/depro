@@ -1,5 +1,6 @@
 """Database engine, session factory and app lifespan helpers."""
 
+import os
 from collections.abc import Generator
 from pathlib import Path
 
@@ -8,7 +9,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import Base
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+_DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR = Path(os.environ.get("DEPRO_DATA_DIR", str(_DEFAULT_DATA_DIR)))
 DB_PATH = DATA_DIR / "depro.db"
 
 engine = create_engine(

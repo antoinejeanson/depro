@@ -50,6 +50,26 @@ make backend   # uv sync + uvicorn --reload
 make frontend  # npm install (if needed) + vite dev
 ```
 
+## Docker
+
+The Dockerfile builds the frontend and packages it with the API in a single
+image — FastAPI serves the built SPA at `/` (the API stays under `/api`,
+docs at `/docs`):
+
+```sh
+docker compose up -d --build
+# → http://localhost:8000
+```
+
+Notes:
+
+- **Timezone** — the app works in naive local time. Set `TZ` in
+  `docker-compose.yml` to your timezone; without it, "due today" and
+  recurrence are evaluated in UTC.
+- **Data** — the SQLite database lives in the `depro-data` volume
+  (`/data/depro.db` inside the container). Back it up with
+  `docker compose cp depro:/data/depro.db ./depro-backup.db`.
+
 ## Tests & linting
 
 ```sh

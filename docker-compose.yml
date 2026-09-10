@@ -1,0 +1,15 @@
+services:
+  depro:
+    build: .
+    image: depro
+    ports:
+      - "8000:8000"
+    environment:
+      # The app works in naive local time — set this to your timezone.
+      TZ: Europe/Paris
+    volumes:
+      - depro-data:/data
+    restart: unless-stopped
+
+volumes:
+  depro-data:
